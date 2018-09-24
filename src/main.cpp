@@ -10,14 +10,13 @@ static const String SAVE_FILE_NAME = "SAVE.TXT";
 static const String STORE_FILE_NAME = "STORE.TXT";
 static const char *SOFT_AP_NAME = "RATER";
 static const char *DEVICE_NAME = "RATER";
-static const uint8_t LED_RED = D1;
-static const uint8_t LED_GRN = D3;
-static const uint8_t BUTTON = D2;
+static const uint8_t LED_RED = D1, LED_GRN = D3, BUTTON = D2;
 static const unsigned long WIFI_TIME = 10 * 60000;
 static const unsigned long KILL_TIME = 1 * 1000;
 static const unsigned long BUTTON_TIME = 3 * 1000;
 
 unsigned long press_mem;
+unsigned long server_mem;
 
 WiFiServer server(80);
 WiFiClient client;
@@ -60,7 +59,7 @@ void wifiConnect() {
       }
       WiFi.begin(ssid.c_str(), pswd.c_str());
       Serial.print(".");
-      delay(15000);
+      delay(10000);
     }
     Serial.println();
     Serial.print("connected to router: ");
@@ -71,6 +70,7 @@ void wifiConnect() {
   }
 }
 
+// register the wifi config button
 void longPress(function<void()> func) {
   if (!digitalRead(BUTTON)) {
     if (press_mem == 0) {
@@ -88,8 +88,7 @@ void longPress(function<void()> func) {
   }
 }
 
-unsigned long server_mem;
-
+// manages the config server keepalive
 void keepAlive(bool kill = false) {
   if (kill) {
     server_mem = millis() + KILL_TIME;
@@ -117,12 +116,12 @@ void accessPointServer() {
   }
 }
 
-void loop() {
-
+// the config server main, which needs to be in the loop()
+void configServer() {
   // listen for longpressing the button
   longPress(accessPointServer);
-  // turn off AP wifi
   if (server_mem < millis()) {
+    // turn off AP wifi
     digitalWrite(LED_RED, LOW);
     wifiConnect();
   } else {
@@ -134,7 +133,7 @@ void loop() {
       String buf;
       String method;
       String src;
-      int i;
+      int i = 0;
       while (client.connected()) {
         if (i++ == 5000) {
           break;
@@ -150,7 +149,6 @@ void loop() {
           }
         }
         if (method == "GET" && src == "/") {
-          // get index.html
           File index = SD.open(INDEX_FILE_NAME);
           if (index) {
             client.println("HTTP/1.1 200 OK");
@@ -221,4 +219,9 @@ void loop() {
       Serial.println("client disconnected");
     }
   }
+}
+
+void loop() {
+  configServer();
+  // add your code below
 }
